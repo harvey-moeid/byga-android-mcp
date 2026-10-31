@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "byga-android-mcp-production",
+  "main": "workers/gateway/index.ts",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REGISTRY",
+        "class_name": "DeviceRegistryDO"
+      },
+      {
+        "name": "SESSIONS",
+        "class_name": "DeviceSessionDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "DeviceRegistryDO",
+        "DeviceSessionDO"
+      ]
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "vars": {
+    "PUBLIC_ORIGIN": "https://byga.example.invalid",
+    "ADMIN_PASSWORD_HASH": "UNCONFIGURED"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}

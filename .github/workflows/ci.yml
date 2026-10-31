@@ -1,0 +1,63 @@
+name: BYGA quality and release artifacts
+on:
+  push:
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: byga-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.26.8'
+          cache-dependency-path: termux/go.sum
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - name: Go race tests, vet, Linux simulator and Android ABI build
+        working-directory: termux
+        run: |
+          go test -race ./...
+          go vet ./...
+          mkdir -p ../dist
+          go build -trimpath -o ../dist/byga-agent-linux-amd64 ./connector
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o ../dist/byga-agent-android-arm64 ./connector
+      - run: npm run build
+      - run: npm run types && npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
+      - name: APK build and Android lint
+        working-directory: apps/android-bridge
+        run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug assembleDebugAndroidTest
+      - name: Package evidence and checksums
+        run: |
+          cp apps/android-bridge/app/build/outputs/apk/debug/app-debug.apk dist/byga-android-bridge-debug.apk
+          cp apps/android-bridge/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk dist/byga-android-bridge-tests.apk
+          cp -r termux/scripts dist/termux-install
+          npm sbom --omit=dev --sbom-format cyclonedx > dist/sbom.cdx.json
+          git rev-parse HEAD > dist/SOURCE_COMMIT
+          cd dist
+          sha256sum byga-agent-* byga-android-bridge-*.apk > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: byga-1.0.0-${{ github.sha }}
+          path: |
+            dist/
+            work/screenshots/
+            apps/android-bridge/app/build/reports/
+          retention-days: 14
+          if-no-files-found: error

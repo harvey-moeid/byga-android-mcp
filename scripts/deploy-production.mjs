@@ -1,0 +1,13 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {spawnSync} from 'node:child_process';
+for(const key of ['CLOUDFLARE_ACCOUNT_ID','BYGA_PUBLIC_ORIGIN','BYGA_OAUTH_KV_ID'])if(!process.env[key])throw new Error(`${key} wajib dikonfigurasi`);
+const config=JSON.parse(await readFile('wrangler.jsonc','utf8'));
+config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID;
+config.main=resolve(config.main);
+config.name=process.env.BYGA_WORKER_NAME??config.name;
+config.vars={PUBLIC_ORIGIN:new URL(process.env.BYGA_PUBLIC_ORIGIN).origin};
+config.kv_namespaces=[{binding:'OAUTH_KV',id:process.env.BYGA_OAUTH_KV_ID}];
+await mkdir('work',{recursive:true});await writeFile('work/wrangler.production.json',JSON.stringify(config,null,2));
+const result=spawnSync('npx',['wrangler','deploy','--config','work/wrangler.production.json'],{stdio:'inherit',env:process.env});
+process.exit(result.status??1);
