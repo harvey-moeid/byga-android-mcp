@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+work/
+*.apk
+*.aab
+**/build/
+.gradle/
+local.properties
+*.jks
+*.keystore
+agent.json

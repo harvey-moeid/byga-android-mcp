@@ -1,0 +1,33 @@
+name: Deploy production only
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: byga-production
+  cancel-in-progress: false
+jobs:
+  quality:
+    uses: ./.github/workflows/ci.yml
+  deploy:
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm run build:dashboard
+      - run: node scripts/deploy-production.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          BYGA_PUBLIC_ORIGIN: ${{ vars.BYGA_PUBLIC_ORIGIN }}
+          BYGA_OAUTH_KV_ID: ${{ vars.BYGA_OAUTH_KV_ID }}
+      - name: Non-destructive production smoke
+        env:
+          BYGA_PUBLIC_ORIGIN: ${{ vars.BYGA_PUBLIC_ORIGIN }}
+        run: node scripts/smoke-production.mjs
