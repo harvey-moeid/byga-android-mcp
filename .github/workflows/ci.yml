@@ -1,6 +1,7 @@
 name: BYGA quality and release artifacts
 on:
   push:
+    branches-ignore: [main]
   pull_request:
   workflow_call:
 permissions:
